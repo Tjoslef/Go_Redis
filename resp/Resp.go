@@ -16,11 +16,11 @@ const (
 )
 
 type Value struct {
-	typ   string
-	str   string
+	Typ   string
+	Str   string
 	num   int
-	bulk  string
-	array []Value
+	Bulk  string
+	Array []Value
 }
 
 type Resp struct {
@@ -78,15 +78,13 @@ func (r *Resp) Read() (Value, error) {
 
 func (r *Resp) readArray() (Value, error) {
 	v := Value{}
-	v.typ = "array"
+	v.Typ = "array"
 
-	// read length of array
 	len, _, err := r.readInteger()
 	if err != nil {
 		return v, err
 	}
 
-	// foreach line, parse and read the value
 	v.array = make([]Value, 0)
 	for i := 0; i < len; i++ {
 		val, err := r.Read()
@@ -94,7 +92,6 @@ func (r *Resp) readArray() (Value, error) {
 			return v, err
 		}
 
-		// append parsed value to array
 		v.array = append(v.array, val)
 	}
 
@@ -104,7 +101,7 @@ func (r *Resp) readArray() (Value, error) {
 func (r *Resp) readBulk() (Value, error) {
 	v := Value{}
 
-	v.typ = "bulk"
+	v.Typ = "bulk"
 
 	len, _, err := r.readInteger()
 	if err != nil {
@@ -117,8 +114,83 @@ func (r *Resp) readBulk() (Value, error) {
 
 	v.bulk = string(bulk)
 
-	// Read the trailing CRLF
 	r.readLine()
 
 	return v, nil
+}
+func (v Value) Marshal() []byte {
+	switch v.Typ {
+	case "array":
+
+		return v.writerArray()
+	case "bulk":
+		return v.writerBulk()
+	case "string":
+
+		return v.writerString()
+	case "null":
+		return v.writerNull()
+	case "error":
+
+		return v.writerError()
+	default:
+		return []byte{}
+	}
+}
+func (v Value) writerArray() []byte {
+	size := len(v.array)
+	var byteArray = make([]byte, size)
+	byteArray = append(byteArray, ARRAY)
+	byteArray = append(byteArray, strconv.Itoa(size)...)
+	byteArray = append(byteArray, '\r', '\n')
+	for i := 0; i < size; i++ {
+		byteArray = append(byteArray, v.array[i].Marshal()...)
+
+	}
+	return byteArray
+}
+func (v Value) writerBulk() []byte {
+	size := len(v.bulk)
+	var byteBulk []byte
+	byteBulk = append(byteBulk, BULK)
+	byteBulk = append(byteBulk, strconv.Itoa(size)...)
+	byteBulk = append(byteBulk, '\r', '\n')
+	byteBulk = append(byteBulk, v.bulk...)
+	byteBulk = append(byteBulk, '\r', '\n')
+	return byteBulk
+}
+func (v Value) writerString() []byte {
+	var byteString []byte
+	byteString = append(byteString, STRING)
+	byteString = append(byteString, v.Str...)
+	byteString = append(byteString, '\r', '\n')
+	return byteString
+
+}
+func (v Value) writerNull() []byte {
+	return []byte("$-1\r\n")
+}
+func (v Value) writerError() []byte {
+	var byteError []byte
+	byteError = append(byteError, ERROR)
+	byteError = append(byteError, v.Str...)
+	byteError = append(byteError, '\r', '\n')
+	return byteError
+}
+
+type Writer struct {
+	writer io.Writer
+}
+
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{writer: w}
+}
+
+func (w *Writer) Write(v Value) error {
+	var bytes = v.Marshal()
+	_, err := w.writer.Write(bytes)
+	if err != nil {
+		return err
+	}
+	return nil
 }
