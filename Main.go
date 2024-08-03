@@ -1,41 +1,41 @@
 package main
+
 import (
 	"fmt"
-	"io"
 	"net"
-	"os"
-
+	"tjoslef/skola/Redis/resp"
 )
-func main() {
 
-	fmt.Println("Start listing on port :6379")
-	// creating a server
-	l,err := net.Listen("tcp", ":6379")
-	if err != nil {
-		fmt.Println(err)
-		return 
-	}
-	conn,err := l.Accept()
+func main() {
+	fmt.Println("Listening on port :6379")
+
+	// Create a new server
+	l, err := net.Listen("tcp", ":6379")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+
+	// Listen for connections
+	conn, err := l.Accept()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	defer conn.Close()
 
 	for {
-		buff := make([]byte,1024)
-		_,err := conn.Read(buff)
+		resp := resp.NewResp(conn)
+		value, err := resp.Read()
 		if err != nil {
-			if err == io.EOF{
-				break
-			}
-		fmt.Println("error reading from client", err.Error())	
-		os.Exit(1)
+			fmt.Println(err)
+			return
 		}
+
+		fmt.Println(value)
+
+		// ignore request and send back a PONG
 		conn.Write([]byte("+OK\r\n"))
-
-
-
 	}
 }
-
