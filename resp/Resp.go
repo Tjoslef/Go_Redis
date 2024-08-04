@@ -85,14 +85,14 @@ func (r *Resp) readArray() (Value, error) {
 		return v, err
 	}
 
-	v.array = make([]Value, 0)
+	v.Array = make([]Value, 0)
 	for i := 0; i < len; i++ {
 		val, err := r.Read()
 		if err != nil {
 			return v, err
 		}
 
-		v.array = append(v.array, val)
+		v.Array = append(v.Array, val)
 	}
 
 	return v, nil
@@ -112,7 +112,7 @@ func (r *Resp) readBulk() (Value, error) {
 
 	r.reader.Read(bulk)
 
-	v.bulk = string(bulk)
+	v.Bulk = string(bulk)
 
 	r.readLine()
 
@@ -138,24 +138,24 @@ func (v Value) Marshal() []byte {
 	}
 }
 func (v Value) writerArray() []byte {
-	size := len(v.array)
+	size := len(v.Array)
 	var byteArray = make([]byte, size)
 	byteArray = append(byteArray, ARRAY)
 	byteArray = append(byteArray, strconv.Itoa(size)...)
 	byteArray = append(byteArray, '\r', '\n')
 	for i := 0; i < size; i++ {
-		byteArray = append(byteArray, v.array[i].Marshal()...)
+		byteArray = append(byteArray, v.Array[i].Marshal()...)
 
 	}
 	return byteArray
 }
 func (v Value) writerBulk() []byte {
-	size := len(v.bulk)
+	size := len(v.Bulk)
 	var byteBulk []byte
 	byteBulk = append(byteBulk, BULK)
 	byteBulk = append(byteBulk, strconv.Itoa(size)...)
 	byteBulk = append(byteBulk, '\r', '\n')
-	byteBulk = append(byteBulk, v.bulk...)
+	byteBulk = append(byteBulk, v.Bulk...)
 	byteBulk = append(byteBulk, '\r', '\n')
 	return byteBulk
 }

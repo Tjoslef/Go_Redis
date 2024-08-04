@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"tjoslef/skola/Redis/Aof"
 	"tjoslef/skola/Redis/resp"
 )
 
@@ -16,6 +17,24 @@ func main() {
 		return
 	}
 
+	aof, err := Aof.NewAof("database.aof")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	defer aof.Closer()
+	
+	aof.Resp.Read(func(value resp.Value) {
+		command := strings.ToUpper(value.Array[0].Bulk)
+		args := value.Array
+		handler, ok := resp.Handler[command]
+		if !ok {
+			fmt.Println("Invalid command: ", command)
+			return
+		}
+		handler(args)
+	})
 	conn, err := l.Accept()
 	if err != nil {
 		fmt.Println(err)
@@ -48,9 +67,11 @@ func main() {
 			writer.Write(resp.Value{Typ: "string", Str: "OK"})
 			continue
 		}
+		if command == "SET" || command == "HSET" {
+			aof.Write(value)
+		}
 		result := handler(args)
 		writer.Write(result)
 
 	}
-
 }
